@@ -5,7 +5,9 @@ from pathlib import Path
 import sys
 
 Path('Audio_16k').mkdir(exist_ok=True)
-IEMOCAP_DIR = Path(sys.argv[1])
+#IEMOCAP_DIR = Path(sys.argv[1])
+IEMOCAP_DIR = Path('C:/Users/Kim-Carolin/Documents/GitHub/automatic_speech_emotion_recognition/data/iemocap/IEMOCAP_full_release')
+
 print ("Downsampling IEMOCAP to 16k")
 for i in range(5):
     sess = i + 1

@@ -127,3 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# data
+/Dataset/IEMOCAP/Audio_16k
+/Dataset/IEMOCAP/labels_sess
+
+# idea
+.idea
+
+# wav2vec file
+*.pt

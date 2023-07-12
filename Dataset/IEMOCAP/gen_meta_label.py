@@ -6,7 +6,9 @@ from pathlib import Path
 import re
 import sys
 
-IEMOCAP_DIR = Path(sys.argv[1])
+#IEMOCAP_DIR = Path(sys.argv[1])
+IEMOCAP_DIR = Path('C:/Users/Kim-Carolin/Documents/GitHub/automatic_speech_emotion_recognition/data/iemocap/IEMOCAP_full_release')
+
 
 print ('Generating metalabels...')
 metalabel = {}

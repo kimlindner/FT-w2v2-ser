@@ -1,6 +1,6 @@
 from pretrain.trainer import MinimalClassifier
 from pretrain.dataloader import MixedDataset
-import faiss
+import faiss ## on remote: install faiss-gpu with cuda
 from torch.utils import data
 import torch
 from tqdm import tqdm
