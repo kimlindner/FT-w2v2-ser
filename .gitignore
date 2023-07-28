@@ -137,3 +137,7 @@ dmypy.json
 
 # wav2vec file
 *.pt
+
+# logs
+/bin/downstream/checkpoints/
+/bin/lightning_logs/
