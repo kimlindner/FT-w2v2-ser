@@ -2,6 +2,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pretrain.trainer import ContinueFinetuningBaseline
 import argparse
+import torch
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--saving_path', type=str, default='pretrain/checkpoints_baseline')
@@ -26,9 +28,15 @@ parser.add_argument('--save_top_k', type=int, default=2)
 parser.add_argument('--datadir', type=str, required=True)
 parser.add_argument('--labelpath', type=str, default=None)
 args = parser.parse_args()
+
 nclusters = None
 if args.num_clusters:
     nclusters = [int(x) for x in args.num_clusters.split(',')]
+
+# limit gpu memory
+torch.cuda.set_per_process_memory_fraction(0.8)
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "heuristic"
+
 
 checkpoint_callback = ModelCheckpoint(
     dirpath=args.saving_path,
@@ -65,3 +73,5 @@ model = ContinueFinetuningBaseline(maxstep=args.training_step,
                                    val_bucket_size=args.val_bucket_size,
                                    use_additional_obj=args.use_additional_obj)
 wrapper.fit(model)
+
+print('\nBaseline done.\n')

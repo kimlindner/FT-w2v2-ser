@@ -2,6 +2,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pretrain.trainer import PretrainedEmoClassifier
 import argparse
+import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--saving_path', type=str, default='pretrain/checkpoints')
@@ -20,14 +21,17 @@ parser.add_argument('--labelpath', type=str, required=True)
 parser.add_argument('--wav2vecpath', type=str, required=True)
 args = parser.parse_args()
 
+# limit gpu memory
+torch.cuda.set_per_process_memory_fraction(0.8)
 
 checkpoint_callback = ModelCheckpoint(
     dirpath=args.saving_path,
     filename='w2v-{epoch:02d}-{valid_loss:.2f}-{valid_acc:.2f}',
-    save_top_k=args.save_top_k,
+    #save_top_k=args.save_top_k,
     verbose=True,
-    monitor='valid_loss',
-    mode='min'
+    #monitor='valid_loss',
+    #mode='min',
+    save_last=True
 )
 wrapper = Trainer(
     precision=args.precision,
@@ -48,3 +52,5 @@ model = PretrainedEmoClassifier(maxstep=args.training_step,
                                 labeling_method=args.labeling_method,
                                 valid_split=args.valid_split)
 wrapper.fit(model)
+
+print('\nPretrain done.\n')

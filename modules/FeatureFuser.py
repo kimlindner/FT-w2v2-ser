@@ -6,7 +6,7 @@ import torch
 from utils.helper_funcs import loadwav2vec
 from transformers import Wav2Vec2ForPreTraining, Wav2Vec2Config
 import argparse
-from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices
+from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
 
 class Wav2vecWrapper(nn.Module):
     def __init__(self, modelpath):
@@ -40,11 +40,12 @@ class Wav2vecWrapper(nn.Module):
                     (batch_size, sequence_length),
                     self.mask_time_prob,
                     self.mask_time_length,
-                    min_masks=2,
-                    device=x.device
+                    min_masks=2
+                    #device=x.device ##
                 )
+                mask_time_indices = torch.from_numpy(mask_time_indices).to('cuda')
                 masked_indicies = mask_time_indices
-                flip_mask = torch.rand((batch_size, sequence_length), device=masked_indicies.device) > self.observe_time_prob
+                flip_mask = torch.rand((batch_size, sequence_length), device=x.device) > self.observe_time_prob
                 wav2vec_z[masked_indicies & flip_mask] = 0.
 
                 # apply SpecAugment along feature axis
@@ -52,9 +53,10 @@ class Wav2vecWrapper(nn.Module):
                     (batch_size, hidden_size),
                     self.mask_feature_prob,
                     self.mask_feature_length,
-                    device=x.device,
                     min_masks=1
+                    #device=x.device,##
                 )
+                mask_feature_indices = torch.from_numpy(mask_feature_indices).to('cuda')
                 wav2vec_z[mask_feature_indices[:, None].expand(-1, sequence_length, -1)] = 0
             wav2vec_z = wav2vec_z.transpose(1, 2)
         wav2vec_c = self.wav2vec.feature_aggregator(wav2vec_z)
@@ -98,9 +100,10 @@ def prepare_mask(length, shape, dtype, device):
 class Wav2vec2Wrapper(nn.Module):
     def __init__(self, pretrain=True):
         super().__init__()
-        self.wav2vec2 = Wav2Vec2ForPreTraining.from_pretrained("facebook/wav2vec2-base", revision='2dcc7b7f9b11f0ef271067e62599a27317a03114').wav2vec2
+        self.wav2vec2 = Wav2Vec2ForPreTraining.from_pretrained("facebook/wav2vec2-base", revision='2dcc7b7f9b11f0ef271067e62599a27317a03114').wav2vec2 ## maybe needs a chang here
         #Disable gradient checkpointing for ddp
-        self.wav2vec2.encoder.config.gradient_checkpointing = False
+        #self.wav2vec2.encoder.config.gradient_checkpointing = False
+        self.wav2vec2.gradient_checkpointing_disable() ##
         self.pretrain = pretrain
         if pretrain:
             self.mask_time_length = 15
@@ -139,11 +142,12 @@ class Wav2vec2Wrapper(nn.Module):
                         (batch_size, sequence_length),
                         self.mask_time_prob,
                         self.mask_time_length,
-                        min_masks=2,
-                        device=x.device
+                        min_masks=2
+                        #device=x.device ##
                     )
-                    masked_indicies = mask_time_indices & mask
-                    flip_mask = torch.rand((batch_size, sequence_length), device=masked_indicies.device) > self.observe_time_prob
+                    mask_time_indices = torch.from_numpy(mask_time_indices).to('cuda')
+                    masked_indicies = mask_time_indices & mask ##
+                    flip_mask = torch.rand((batch_size, sequence_length), device=x.device) > self.observe_time_prob
                     x[masked_indicies & flip_mask] = self.wav2vec2.masked_spec_embed.to(x.dtype)
 
                 # apply SpecAugment along feature axis
@@ -152,9 +156,10 @@ class Wav2vec2Wrapper(nn.Module):
                         (batch_size, hidden_size),
                         self.mask_feature_prob,
                         self.mask_feature_length,
-                        device=x.device,
                         min_masks=1
+                        #device=x.device ##
                     )
+                    mask_feature_indices = torch.from_numpy(mask_feature_indices).to('cuda')
                     x[mask_feature_indices[:, None].expand(-1, sequence_length, -1)] = 0
         x = self.wav2vec2.encoder(x, attention_mask=mask)[0]
         reps = F.relu(x)
@@ -178,7 +183,7 @@ class Wav2vec2Wrapper(nn.Module):
 class Wav2vec2PretrainWrapper(nn.Module):
     def __init__(self):
         super().__init__()
-        self.wav2vec2PT = Wav2Vec2ForPreTraining.from_pretrained("facebook/wav2vec2-base", revision='2dcc7b7f9b11f0ef271067e62599a27317a03114')
+        self.wav2vec2PT = Wav2Vec2ForPreTraining.from_pretrained("facebook/wav2vec2-base", revision='2dcc7b7f9b11f0ef271067e62599a27317a03114') ##
         self.wav2vec2 = self.wav2vec2PT.wav2vec2
 #        self.wav2vec2PT.freeze_feature_extractor()
 
@@ -199,10 +204,19 @@ class Wav2vec2PretrainWrapper(nn.Module):
                 self.wav2vec2PT.config.mask_time_prob,
                 self.wav2vec2PT.config.mask_time_length,
                 min_masks=2,
-                device=x.device,
                 attention_mask=attn_mask
+                #device=x.device ##
+
             )
-        x = self.wav2vec2PT(x, mask_time_indices=mask_time_indices)#, attention_mask=attn_mask)
+            ## added sampled_negative_indices in order to calculate loss
+            sampled_negative_indices = _sample_negative_indices(
+                feat_shape,
+                self.wav2vec2PT.config.num_negatives,
+                mask_time_indices
+            )
+            mask_time_indices = torch.from_numpy(mask_time_indices).to('cuda')
+            sampled_negative_indices = torch.from_numpy(sampled_negative_indices).to('cuda')
+        x = self.wav2vec2PT(x, mask_time_indices=mask_time_indices, sampled_negative_indices=sampled_negative_indices)#, attention_mask=attn_mask)
         return x
 
     #From huggingface

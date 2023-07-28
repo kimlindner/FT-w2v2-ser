@@ -16,10 +16,12 @@ class PretrainEmoDataset(data.Dataset):
     def __init__(self, datadir, labeldir, returnname=False, maxseqlen=12*16000, labeling_method='hard'):
         with open(labeldir, 'r') as f:
             self.label = json.load(f) #{wavname: {emotion: number}} or {wavname: emotion}
-        if list(self.label.keys()) == ['Train', 'Val', 'Test']: #Format of fine-tuning, only use training set
+        if set(list(self.label.keys())) == set(['Train', 'Val', 'Test']): #Format of fine-tuning, only use training set
             self.label = self.label['Train']
+        print(f'label:{self.label}')
         self.datasetbase = [x for x in os.listdir(datadir) if x in self.label]
         self.dataset = [os.path.join(datadir, x) for x in self.datasetbase]
+        print(f'dataset:{self.dataset}')
         self.returnname = returnname
         self.maxseqlen = maxseqlen
         if type(list(self.label.values())[0]) == str:
@@ -29,6 +31,7 @@ class PretrainEmoDataset(data.Dataset):
             self.emos = Counter([k for sparse_emo in self.label.values() for k in sparse_emo.keys()])
         self.emoset = list(self.emos.keys())
         self.nemos = len(self.emoset)
+        print(f'nemos: {self.nemos}')
         self.labeling_method = labeling_method
         self.labeldict = {k: i for i, k in enumerate(self.emoset)}
 

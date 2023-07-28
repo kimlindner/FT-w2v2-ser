@@ -54,15 +54,14 @@ for exp in range(args.num_exps):
 
         trainer = Trainer(
             precision=args.precision,
-            amp_backend='native',
             callbacks=[checkpoint_callback] if hasattr(model, 'valid_met') else None,
-            checkpoint_callback=hasattr(model, 'valid_met'),
             resume_from_checkpoint=None,
             check_val_every_n_epoch=1,
             max_epochs=hparams.max_epochs,
             num_sanity_val_steps=2 if hasattr(model, 'valid_met') else 0,
-            gpus=1,
-            logger=False
+            accelerator='gpu',
+            devices=1,
+            logger=True
         )
         trainer.fit(model)
 
@@ -70,7 +69,7 @@ for exp in range(args.num_exps):
             trainer.test()
         else:
             trainer.test(model)
-        met = model.test_met
+        met = model.test_met # metrics on test data set
         metrics[:, exp, ifold] = np.array([met.uar*100, met.war*100, met.macroF1*100, met.microF1*100])
         confusion += met.m
 
@@ -93,3 +92,5 @@ WriteConfusionSeaborn(
     model.dataset.emoset,
     os.path.join(args.saving_path, 'confmat.png')
 )
+
+print('\nDownstream done.\n')

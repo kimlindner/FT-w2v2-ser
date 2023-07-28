@@ -89,3 +89,5 @@ else:
     for linear in model.linearheads:
         linear.reset_parameters()
 wrapper.fit(model)
+
+print('\nSecond run done.\n')

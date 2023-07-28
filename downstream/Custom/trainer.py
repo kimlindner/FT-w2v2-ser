@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from pytorch_lightning.core.lightning import LightningModule
+from pytorch_lightning import LightningModule
 import pytorch_lightning as pl
 
 from .dataloader import CustomEmoDataset
@@ -32,6 +32,7 @@ class DownstreamGeneral(LightningModule):
         else:
             self.model = PretrainedRNNHead(n_classes=self.dataset.nemos,
                                            backend=self.hp.model_type)
+
         counter = self.dataset.train_dataset.emos
         weights = torch.tensor(
             [counter[c] for c in self.dataset.emoset]
@@ -78,6 +79,8 @@ class DownstreamGeneral(LightningModule):
         return loader
 
     def test_dataloader(self):
+        if not hasattr(self.dataset, 'test_dataset'):
+            return
         loader = DataLoader(dataset=self.dataset.test_dataset,
                             batch_size=1,
                             num_workers=self.hp.nworkers,

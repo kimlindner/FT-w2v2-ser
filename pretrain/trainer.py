@@ -7,7 +7,7 @@ from torch.utils import data
 from modules.FeatureFuser import Wav2vecWrapper, Wav2vec2Wrapper, Wav2vec2PretrainWrapper
 from modules.NN import LinearHead, RNNLayer
 from utils.metrics import ConfusionMetrics
-import pytorch_lightning.core.lightning as pl
+import pytorch_lightning as pl
 
 class PretrainedEmoClassifier(pl.LightningModule):
     def __init__(self, maxstep, batch_size, lr, datadir, labeldir, modelpath, labeling_method, valid_split):
@@ -286,6 +286,7 @@ class ContinueFinetuningBaseline(pl.LightningModule):
         self.wav2vec2 = Wav2vec2PretrainWrapper()
         self.use_additional_obj = use_additional_obj
         self.maxseqlen = maxseqlen
+
         if use_additional_obj:
             self.linearheads = nn.ModuleList([nn.Linear(self.wav2vec2.wav2vec2PT.config.proj_codevector_dim, ncluster) for i, ncluster in enumerate(nclusters)])
             self.data = SecondPhaseEmoDataset(datadir, None, labelpath, maxseqlen=maxseqlen,
@@ -356,6 +357,7 @@ class ContinueFinetuningBaseline(pl.LightningModule):
         return [optimizer], [scheduler]
 
     def forward(self, x, length):
+        torch.cuda.empty_cache()
         reps = self.wav2vec2(x, length)
         reps, pretrain_loss = reps.projected_states, reps.loss
         if not self.use_additional_obj:
@@ -367,6 +369,7 @@ class ContinueFinetuningBaseline(pl.LightningModule):
         return logits, pretrain_loss
 
     def training_step(self, batch, batch_idx):
+        torch.cuda.empty_cache() ## free up unused memory
         if self.use_additional_obj:
             feats, labels, length = batch
             pouts, loss = self(feats, length=length)
@@ -376,6 +379,7 @@ class ContinueFinetuningBaseline(pl.LightningModule):
         else:
             feats, length = batch
             loss = self(feats, length=length)
+        print(f'loss:{loss}')
         tqdm_dict = {'loss': loss}
         self.log_dict(tqdm_dict, on_step=True, on_epoch=True, prog_bar=True)
         return loss
