@@ -139,3 +139,5 @@ for i, nclus in enumerate(nclusters):
 
 with open(os.path.join(args.outputdir, 'all-clus.json'), 'w') as f:
     json.dump(combined_dict, f, indent=4)
+
+print('\nClustering done.\n')
